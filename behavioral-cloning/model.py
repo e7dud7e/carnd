@@ -1,75 +1,51 @@
 import csv
 import cv2
 import numpy as np
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Flatten, Dense
-from keras.layers import Lambda, Activation
+from keras.layers import Lambda, Activation, Cropping2D
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
-
+from keras.models import Model
+import matplotlib.pyplot as plt
 
 def main():
-    # my code here
+    """
+    Constants
+    """
+    BATCH_SIZE=32
+    EPOCHS=4
+
     """
     Get the data
     """
-
-    lines = []
-    with open('./data/driving_log.csv') as csvfile:
-        reader = csv.reader(csvfile)
-        for line in reader:
-            lines.append(line)
-
-    #the first line is the header, so remove that
-    lines = lines[1:]
-    images = [] #input X
-    measurements = [] #output y
-    #there are about 8000 rows, so I'll use the first 2000 to deal with memory issues
-    for line in lines[0:2000]:
-        """
-        line[0] has original file path of center image; line[1] is left image, line[2] is right image
-        """
-        center_image = cv2.imread(update_path(line[0]))
-        left_image = cv2.imread(update_path(line[1]))
-        right_image = cv2.imread(update_path(line[2]))
-
-        steering_offset = 0.2
-        center_steering = float(line[3])
-        left_steering = center_steering + steering_offset
-        right_steering = center_steering - steering_offset
     
-        images.extend([center_image, left_image, right_image])   
-        measurements.extend([center_steering,left_steering,right_steering])
-
-    augmented_images, augmented_measurements = [], []
-    for image, measurement in zip(images, measurements):
-        augmented_images.append(image)
-        augmented_measurements.append(measurement)
-        augmented_images.append(cv2.flip(image,1))
-        augmented_measurements.append(measurement * -1.0)
-
-    """
-    with full data set, memory overflow.  For now, just use less of the data, will
-    work on generators later
-
-    """
-    X_train = np.array(augmented_images, dtype=np.float32)
-    y_train = np.array(augmented_measurements)
-
+    #files = ['./data/driving_log.csv',
+    #         './data_off_road_ok/driving_log.csv']
+    files = ['./data/driving_log.csv']
+    samples = get_samples(files)
+    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
+    # compile and train the model using the generator function
+    train_generator = generator(train_samples, batch_size=BATCH_SIZE)
+    validation_generator = generator(validation_samples, batch_size=BATCH_SIZE)
+   
     """
     Build model
     """
     model = Sequential()
-    model.add(Lambda(lambda x: x / 255.0 - 0.5, input_shape=(160,320,3)))
-    model.add(Convolution2D(6,5,5,activation="relu"))
-    model.add(MaxPooling2D())
-    model.add(Convolution2D(6,5,5,activation="relu"))
-    model.add(MaxPooling2D())
-    model.add(Convolution2D(16,5,5,activation="relu"))
-    model.add(MaxPooling2D())
+    model.add(Cropping2D(cropping=((70,20), (0,0)), input_shape=(160,320,3)))
+    model.add(Lambda(lambda x: x / 255.0 - 0.5))
+    model.add(Convolution2D(24,5,5, subsample=(2,2), activation="relu"))
+    model.add(Convolution2D(36,5,5, subsample=(2,2), activation="relu"))
+    model.add(Convolution2D(48,5,5, subsample=(2,2), activation="relu"))
+    model.add(Convolution2D(64,3,3, activation="relu"))
+    model.add(Convolution2D(64,3,3, activation="relu"))
     model.add(Flatten())
-    model.add(Dense(120))
-    model.add(Dense(84))
+    model.add(Dense(100))
+    model.add(Dense(50))
+    model.add(Dense(10))
     model.add(Dense(1))
 
     """
@@ -81,21 +57,99 @@ def main():
     """
 
     model.compile(loss='mse', optimizer='adam')
-    model.fit(X_train, 
-            y_train, 
-            batch_size=32,
-            nb_epoch=2,
-            verbose=2,
-            validation_split=0.2,
-            shuffle=True)
+    history_object = model.fit_generator(train_generator, 
+                                        samples_per_epoch = (len(train_samples) // BATCH_SIZE)*BATCH_SIZE, 
+                                        validation_data = validation_generator,
+                                        nb_val_samples = len(validation_samples), 
+                                        nb_epoch = EPOCHS,
+                                        verbose = 1)
 
     model.save('model.h5')
 
+    ### print the keys contained in the history object
+    """
+    print(history_object.history.keys())
+    fig = plt.figure()
+    ### plot the training and validation loss for each epoch
+    plt.plot(history_object.history['loss'], figure=fig)
+    plt.plot(history_object.history['val_loss'], figure=fig)
+    plt.title('model mean squared error loss', figure=fig)
+    plt.ylabel('mean squared error loss', figure=fig)
+    plt.xlabel('epoch', figure=fig)
+    plt.legend(['training set', 'validation set'], loc='upper right', figure=fig)
+    fig.savefig("history_loss", format="png")
+    """
+    
+
+#end main()
+
+
+def get_samples(files):
+    samples_all = []
+    for file_name in files:
+        with open(file_name) as csvfile:
+            samples = []
+            reader = csv.reader(csvfile)
+            for line in reader:
+                samples.append(line)
+        #the first line is the header, so remove that
+        samples = samples[1:]
+        samples_all.extend(samples)
+    return samples_all
+
+
+def generator(samples, batch_size=32):
+    num_samples = len(samples)
+    while 1: # Loop forever so the generator never terminates
+        shuffle(samples)
+        for offset in range(0, num_samples, batch_size):
+            batch_samples = samples[offset:offset+batch_size]
+
+            images, angles = [], []
+            for batch_sample in batch_samples:
+                center_path = update_path(batch_sample[0])
+                center_image = cv2.imread(update_path(batch_sample[0]))
+                left_image = cv2.imread(update_path(batch_sample[1]))
+                right_image = cv2.imread(update_path(batch_sample[2]))
+
+                if center_image is None:
+                    print("no image found " + center_path)
+                steering_offset = 0.3
+                center_steering = float(batch_sample[3])
+                left_steering = center_steering + steering_offset
+                right_steering = center_steering - steering_offset
+        
+                images.extend([center_image, left_image, right_image])   
+                angles.extend([center_steering,left_steering,right_steering])
+
+            augmented_images, augmented_angles = [], []
+            for image, angle in zip(images, angles):
+                augmented_images.append(image)
+                augmented_angles.append(angle)
+                augmented_images.append(cv2.flip(image,1))
+                augmented_angles.append(angle * -1.0)
+
+            # trim image to only see section with road
+            X_train = np.array(images)
+            y_train = np.array(angles)
+            yield shuffle(X_train, y_train)
+        #end for offset in range(...)
+    #end while 1:
+#end def generator()
+
+
 def update_path(source_path):
-    filename = source_path.split('/')[-1]
-    return './data/IMG/' + filename
-
-
+    if(len(source_path)<=10):
+        print("short source path:" + source_path)
+    source_paths_split = source_path.split('/')
+    if len(source_paths_split) <= 2:
+        subfolder='data'
+    else:
+        subfolder = source_paths_split[-3].strip()
+    filename = source_paths_split[-1].strip()
+    new_path =  './' + subfolder + '/IMG/' + filename
+    return new_path
+#end def update_path
 
 if __name__ == "__main__":
     main()
