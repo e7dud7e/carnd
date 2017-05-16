@@ -1,4 +1,5 @@
 import csv
+import pickle
 import cv2
 import numpy as np
 from sklearn.utils import shuffle
@@ -6,10 +7,19 @@ from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.layers import Flatten, Dense
 from keras.layers import Lambda, Activation, Cropping2D
+from keras.layers.core import Dropout
 from keras.layers.convolutional import Convolution2D
 from keras.layers.pooling import MaxPooling2D
 from keras.models import Model
+
+import matplotlib
+matplotlib.use('Agg') # Must be before importing matplotlib.pyplot or pylab!
 import matplotlib.pyplot as plt
+
+"""
+Note, when running on aws machine, need to declare
+matplotlib.use('Agg') before importing matplotlib.pyplot
+"""
 
 def main():
     """
@@ -22,9 +32,14 @@ def main():
     Get the data
     """
     
-    #files = ['./data/driving_log.csv',
-    #         './data_off_road_ok/driving_log.csv']
-    files = ['./data/driving_log.csv']
+    all_files = ['./data/driving_log.csv',
+                 './data_normal/driving_log.csv',
+                 './data_off_road_02/driving_log.csv',
+                 './data_off_road_01/driving_log.csv',
+                 './data_reverse/driving_log.csv',
+                 './data_advanced_normal/driving_log.csv']
+    #use data from my normal driving plus recovering from edges of the road (off_road_02)
+    files = all_files[1:3]
     samples = get_samples(files)
     train_samples, validation_samples = train_test_split(samples, test_size=0.2)
     # compile and train the model using the generator function
@@ -32,7 +47,7 @@ def main():
     validation_generator = generator(validation_samples, batch_size=BATCH_SIZE)
    
     """
-    Build model
+    Build model; basd on NVIDIA's model
     """
     model = Sequential()
     model.add(Cropping2D(cropping=((70,20), (0,0)), input_shape=(160,320,3)))
@@ -42,6 +57,7 @@ def main():
     model.add(Convolution2D(48,5,5, subsample=(2,2), activation="relu"))
     model.add(Convolution2D(64,3,3, activation="relu"))
     model.add(Convolution2D(64,3,3, activation="relu"))
+    model.add(Dropout(0.5))
     model.add(Flatten())
     model.add(Dense(100))
     model.add(Dense(50))
@@ -58,7 +74,7 @@ def main():
 
     model.compile(loss='mse', optimizer='adam')
     history_object = model.fit_generator(train_generator, 
-                                        samples_per_epoch = (len(train_samples) // BATCH_SIZE)*BATCH_SIZE, 
+                                        samples_per_epoch = (len(train_samples) // BATCH_SIZE) * BATCH_SIZE, 
                                         validation_data = validation_generator,
                                         nb_val_samples = len(validation_samples), 
                                         nb_epoch = EPOCHS,
@@ -66,20 +82,26 @@ def main():
 
     model.save('model.h5')
 
-    ### print the keys contained in the history object
+    ### save the history_object, and plot losses on local machine
     """
-    print(history_object.history.keys())
-    fig = plt.figure()
-    ### plot the training and validation loss for each epoch
-    plt.plot(history_object.history['loss'], figure=fig)
-    plt.plot(history_object.history['val_loss'], figure=fig)
-    plt.title('model mean squared error loss', figure=fig)
-    plt.ylabel('mean squared error loss', figure=fig)
-    plt.xlabel('epoch', figure=fig)
-    plt.legend(['training set', 'validation set'], loc='upper right', figure=fig)
-    fig.savefig("history_loss", format="png")
+    Probably can't pickle the history_object
+        with open('history_object.pickle', 'wb') as f:
+        pickle.dump([history_object, files, EPOCHS], f)
     """
     
+    ### print the keys contained in the history object (do this locally)
+    """
+    
+    """
+    ### plot the training and validation loss for each epoch
+    plt.plot(history_object.history['loss'])
+    plt.plot(history_object.history['val_loss'])
+    files_str = "|".join([file_path.split('/')[-2] for file_path in files])
+    plt.title("MSE Loss " + str(EPOCHS) + " epochs" + " files used:\n" + files_str)
+    plt.ylabel('mean squared error loss')
+    plt.xlabel('epoch')
+    plt.legend(['training set', 'validation set'], loc='upper right')
+    plt.savefig("history_loss.png", format="png")
 
 #end main()
 
