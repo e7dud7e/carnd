@@ -83,6 +83,9 @@ Here's a [link to my video result, project_video_out.mp4](./output_video/project
 
 I used a heatmap to aggregate the bounding boxes, and then thresholded that map so that isolated bounding boxes are not considered detections, whereas close clusters of bounding boxes are identified as cars.  I used `scipy.ndimage.measurements.label()` to identify individual clusters in the heatmap. I  assumed each label was a detected vehicle. I created a bounding box around each cluster to draw onto the image.
 
+I kept the threshold low for identifying vehicles, so that the white vehicle would be detected.  The white vehicle tends to get fewer detections than the black vehicles.  
+
+Even after thresholding and using scipy to identify vehicles, the resulting windows tend to create multiple windows on the same vehicle.  These windows are sometimes overlapping and sometimes only adjacent to one another.  I added some merge code, found in the functions `merge_boxes`, with helper functions `combine_box`, `boxes_adjacent`,  `is_inside_box` (see the header "Merge Overlapping bounding boxes).  These look for windows that are within a maximum distance of one another, and merges them into an aggregate window.
 
 ### Here are some frames and their corresponding heatmaps:
 
