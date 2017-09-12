@@ -2,16 +2,26 @@
 
 [//]: # (Image References)
 
-[region_of_interest]: ./pipeline_images/whiteCarLaneSwitch_region.jpg 
+[region_of_interest]: ./pipeline_images/whiteCarLaneSwitch_region.jpg
+
 [gray]: ./pipeline_images/whiteCarLaneSwitch_gray.jpg
+
 [blur_gray]: ./pipeline_images/whiteCarLaneSwitch_blur_gray.jpg
+
 [edges]: ./pipeline_images/whiteCarLaneSwitch_edges.jpg
+
 [hough]: ./pipeline_images/whiteCarLaneSwitch_hough.jpg
+
 [region_edge]: ./pipeline_images/whiteCarLaneSwitch_region_edge.jpg
+
 [other_lines]: ./pipeline_images/whiteCarLaneSwitch_other_lines.jpg
+
 [lane_lines]: ./pipeline_images/whiteCarLaneSwitch_lane_lines.jpg
+
 [full_lanes]: ./pipeline_images/whiteCarLaneSwitch_full_lanes.jpg
+
 [overlay_lines]: ./pipeline_images/whiteCarLaneSwitch_overlay_lines.jpg
+
 [overlay_lanes]: ./pipeline_images/whiteCarLaneSwitch_overlay_lanes.jpg
 ---
 
