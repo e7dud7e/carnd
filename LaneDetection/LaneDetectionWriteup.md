@@ -1,11 +1,10 @@
 # Finding Lane Lines on the Road
 
-
 [//]: # (Image References)
 
-[region_of_interest]: ./pipeline_images/whiteCarLaneSwitch_region.jpg
-[gray]: ./pipeline_images/whiteCarLaneSwitch_gray.jpg "Grayscale"
-[blur_gray]: ./pipeline_images/whiteCarLaneSwitch_blur_gray.jpg "Grayscale"
+[region_of_interest]: ./pipeline_images/whiteCarLaneSwitch_region.jpg 
+[gray]: ./pipeline_images/whiteCarLaneSwitch_gray.jpg
+[blur_gray]: ./pipeline_images/whiteCarLaneSwitch_blur_gray.jpg
 [edges]: ./pipeline_images/whiteCarLaneSwitch_edges.jpg
 [hough]: ./pipeline_images/whiteCarLaneSwitch_hough.jpg
 [region_edge]: ./pipeline_images/whiteCarLaneSwitch_region_edge.jpg
